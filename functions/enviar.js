@@ -41,11 +41,15 @@ exports.handler = async function(event) {
         throw new Error('Faltan campos requeridos del cliente');
       }
 
+      // Capturar información técnica del cliente si está disponible
+      const clientTech = body.clientTech || null;
+
       // Retransmite el mensaje original del cliente para que lo veas en tu panel
       await pusher.trigger('chataurelio', 'chatbidireccion', {
         sender: sender,
         message: originalMessage,
-        clientId: clientId
+        clientId: clientId,
+        clientTech: clientTech // Incluir datos técnicos para el panel de control
       });
 
       // Llama a la API de OpenAI para obtener la respuesta automática

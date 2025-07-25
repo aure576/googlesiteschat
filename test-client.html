@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Cliente Chat</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 400px; 
+            margin: 50px auto; 
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .chat-widget {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #messageInput {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        #sendBtn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #sendBtn:hover {
+            background: #0056b3;
+        }
+        .info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        .messages {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            background: #f8f9fa;
+        }
+        .message {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .user { background: #d4edda; }
+        .ai { background: #f8d7da; }
+    </style>
+</head>
+<body>
+    <div class="chat-widget">
+        <h3>Chat de Prueba</h3>
+        <div class="messages" id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Escribe tu mensaje...">
+        <button id="sendBtn">Enviar</button>
+        
+        <div class="info">
+            <strong>Información del Cliente Detectada:</strong><br>
+            <div id="clientInfo">Cargando...</div>
+        </div>
+    </div>
+
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script>
+        const CLIENT_NAME = "Usuario Test";
+        const CLIENT_ID = "test_client_" + Date.now();
+        
+        // Detectar información técnica del cliente
+        function detectClientTechnology() {
+            const userAgent = navigator.userAgent;
+            return {
+                device: detectDevice(userAgent),
+                browser: detectBrowser(userAgent),
+                os: detectOS(userAgent),
+                connection: detectConnection(),
+                timestamp: new Date().toISOString(),
+                userAgent: userAgent
+            };
+        }
+
+        function detectDevice(userAgent) {
+            if (/iPhone/.test(userAgent)) return 'iPhone';
+            if (/iPad/.test(userAgent)) return 'iPad';
+            if (/iPod/.test(userAgent)) return 'iPod';
+            if (/Macintosh/.test(userAgent)) return 'MacBook';
+            if (/Android/.test(userAgent)) {
+                if (/Mobile/.test(userAgent)) {
+                    if (/SM-/.test(userAgent)) return 'Samsung Galaxy';
+                    if (/Pixel/.test(userAgent)) return 'Google Pixel';
+                    return 'Android Phone';
+                }
+                return 'Android Tablet';
+            }
+            if (/Windows NT/.test(userAgent)) return 'PC Windows';
+            if (/Linux/.test(userAgent)) return 'Linux PC';
+            return 'Dispositivo';
+        }
+
+        function detectBrowser(userAgent) {
+            let browser = 'Navegador';
+            let version = '';
+            
+            if (/Chrome\/(\d+\.\d+)/.test(userAgent) && !/Edg/.test(userAgent)) {
+                browser = 'Chrome';
+                version = userAgent.match(/Chrome\/(\d+\.\d+)/)[1];
+            } else if (/Safari\//.test(userAgent) && !/Chrome/.test(userAgent)) {
+                browser = 'Safari';
+                const match = userAgent.match(/Version\/(\d+\.\d+)/);
+                version = match ? match[1] : '18.2';
+            } else if (/Firefox\/(\d+\.\d+)/.test(userAgent)) {
+                browser = 'Firefox';
+                version = userAgent.match(/Firefox\/(\d+\.\d+)/)[1];
+            } else if (/Edg\/(\d+\.\d+)/.test(userAgent)) {
+                browser = 'Edge';
+                version = userAgent.match(/Edg\/(\d+\.\d+)/)[1];
+            }
+            
+            return version ? `${browser} ${version}` : browser;
+        }
+
+        function detectOS(userAgent) {
+            if (/iPhone OS (\d+_\d+)/.test(userAgent)) {
+                const version = userAgent.match(/iPhone OS (\d+_\d+)/)[1].replace('_', '.');
+                return `iOS ${version}`;
+            }
+            if (/iPad.*OS (\d+_\d+)/.test(userAgent)) {
+                const version = userAgent.match(/OS (\d+_\d+)/)[1].replace('_', '.');
+                return `iPadOS ${version}`;
+            }
+            if (/Mac OS X (\d+_\d+)/.test(userAgent)) {
+                const version = userAgent.match(/Mac OS X (\d+_\d+)/)[1].replace('_', '.');
+                return `macOS ${version}`;
+            }
+            if (/Android (\d+\.\d+)/.test(userAgent)) {
+                const version = userAgent.match(/Android (\d+\.\d+)/)[1];
+                return `Android ${version}`;
+            }
+            if (/Windows NT (\d+\.\d+)/.test(userAgent)) {
+                const version = userAgent.match(/Windows NT (\d+\.\d+)/)[1];
+                const windowsVersions = {
+                    '10.0': 'Windows 11',
+                    '6.3': 'Windows 8.1',
+                    '6.2': 'Windows 8',
+                    '6.1': 'Windows 7'
+                };
+                return windowsVersions[version] || `Windows ${version}`;
+            }
+            if (/Linux/.test(userAgent)) return 'Linux';
+            return 'Sistema';
+        }
+
+        function detectConnection() {
+            if (navigator.connection) {
+                const conn = navigator.connection;
+                if (conn.effectiveType) {
+                    const typeMap = {
+                        'slow-2g': '2G',
+                        '2g': '2G',
+                        '3g': '3G',
+                        '4g': '4G'
+                    };
+                    return typeMap[conn.effectiveType] || conn.effectiveType.toUpperCase();
+                }
+                if (conn.type) {
+                    return conn.type === 'wifi' ? 'WiFi' : conn.type.toUpperCase();
+                }
+            }
+            return 'WiFi';
+        }
+
+        // Mostrar información detectada
+        const clientTech = detectClientTechnology();
+        document.getElementById('clientInfo').innerHTML = `
+            <strong>Dispositivo:</strong> ${clientTech.device}<br>
+            <strong>Navegador:</strong> ${clientTech.browser}<br>
+            <strong>Sistema:</strong> ${clientTech.os}<br>
+            <strong>Conexión:</strong> ${clientTech.connection}<br>
+            <strong>ID Cliente:</strong> ${CLIENT_ID}
+        `;
+
+        // Configurar Pusher para recibir respuestas
+        const pusher = new Pusher('46e53dfe6f8d93182aaa', { cluster: 'us2' });
+        const channel = pusher.subscribe('chataurelio');
+        channel.bind('chatbidireccion', (data) => {
+            if (data.clientId === CLIENT_ID && (data.sender === 'Aurelio AI' || data.sender === 'Soporte')) {
+                addMessageToChat(data.sender, data.message, 'ai');
+            }
+        });
+
+        function addMessageToChat(sender, message, type = 'user') {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `<strong>${sender}:</strong> ${message}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Enviar mensaje
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addMessageToChat(CLIENT_NAME, message, 'user');
+            input.value = '';
+
+            try {
+                await fetch('/.netlify/functions/enviar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sender: CLIENT_NAME,
+                        originalMessage: message,
+                        messageForGpt: `Responde de manera amigable y útil: ${message}`,
+                        clientId: CLIENT_ID,
+                        clientTech: clientTech // Enviar información técnica
+                    })
+                });
+            } catch (error) {
+                console.error('Error enviando mensaje:', error);
+            }
+        }
+
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
