@@ -16,8 +16,45 @@
         .conversation-item.active { background-color: var(--accent-color); color: white; }
         .conversation-item.active .client-id { color: white; }
         .conversation-item.active .last-message { color: #e0e0e0; }
-        .client-id { font-weight: bold; display: block; margin-bottom: 4px; }
+        .conversation-item.unread { background-color: #fff3cd; border-left: 4px solid #ffc107; }
+        .conversation-item.unread:hover { background-color: #ffeaa7; }
+        .client-id { font-weight: bold; display: block; margin-bottom: 4px; position: relative; }
         .last-message { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #666; }
+        .unread-badge { 
+            background-color: #dc3545; 
+            color: white; 
+            border-radius: 10px; 
+            padding: 2px 6px; 
+            font-size: 11px; 
+            font-weight: bold; 
+            position: absolute; 
+            right: 0; 
+            top: 0; 
+        }
+        .connection-status { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            padding: 5px 10px; 
+            border-radius: 15px; 
+            font-size: 12px; 
+            font-weight: bold; 
+        }
+        .connection-status.connected { background-color: #d4edda; color: #155724; }
+        .connection-status.disconnected { background-color: #f8d7da; color: #721c24; }
+        .notification-toast { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            background-color: #28a745; 
+            color: white; 
+            padding: 12px 20px; 
+            border-radius: 5px; 
+            z-index: 1000; 
+            transform: translateX(100%); 
+            transition: transform 0.3s ease; 
+        }
+        .notification-toast.show { transform: translateX(0); }
         .chat-area { flex-grow: 1; display: flex; flex-direction: column; }
         .chat-header { padding: 20px; border-bottom: 1px solid var(--border-color); background: var(--panel-bg); }
         .chat-header h2 { margin: 0; font-size: 18px; }
@@ -50,6 +87,7 @@
     <main class="chat-area">
         <div class="chat-header">
             <h2 id="chatHeader">Selecciona una conversación</h2>
+            <div class="connection-status disconnected" id="connectionStatus">Desconectado</div>
         </div>
         <div class="chat-messages" id="chatMessages">
              <div class="placeholder"><h3>Esperando mensajes...</h3></div>
@@ -61,12 +99,14 @@
             </form>
         </div>
     </main>
+    <div class="notification-toast" id="notificationToast"></div>
 
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script>
         const OPERATOR_NAME = "Soporte"; // Tu nombre como operador
         const conversations = {};
         let activeClientId = null;
+        let pusherConnected = false;
 
         const conversationListEl = document.getElementById('conversationList');
         const chatHeaderEl = document.getElementById('chatHeader');
@@ -74,10 +114,40 @@
         const replyForm = document.getElementById('reply-form');
         const replyInput = document.getElementById('reply-input');
         const replyBtn = document.getElementById('reply-btn');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const notificationToast = document.getElementById('notificationToast');
+
+        // Notification sound
+        const notificationSound = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUY7zs66hVFApGn+TysmwfCEGU2vLNeSsFJH7K7t+SQwsWaLnr7aVQElRp9+u9gCojKnW+8t2UQwcFhqro765jGgclbsny2I1PAQl9vOrnlUoMD4ao5O6hVhELU6rj7qpYGQU0fM/v1YAyLCttt+bBczAmLzp9x/HYjUpBCnOM7OOhVBAIdL/m2H40JiM"></audio>');
+
+        // Request notification permission
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
 
         function initializePusher() {
             const pusher = new Pusher('46e53dfe6f8d93182aaa', { cluster: 'us2' });
             const channel = pusher.subscribe('chataurelio');
+            
+            // Connection status handling
+            pusher.connection.bind('connected', () => {
+                pusherConnected = true;
+                connectionStatus.textContent = 'Conectado';
+                connectionStatus.className = 'connection-status connected';
+            });
+            
+            pusher.connection.bind('disconnected', () => {
+                pusherConnected = false;
+                connectionStatus.textContent = 'Desconectado';
+                connectionStatus.className = 'connection-status disconnected';
+            });
+            
+            pusher.connection.bind('error', () => {
+                pusherConnected = false;
+                connectionStatus.textContent = 'Error de conexión';
+                connectionStatus.className = 'connection-status disconnected';
+            });
+            
             channel.bind('chatbidireccion', handleIncomingMessage);
         }
 
@@ -86,14 +156,53 @@
             const id = clientId || sender; // Usar clientId como primario
 
             if (!conversations[id]) {
-                conversations[id] = { messages: [], name: sender };
+                conversations[id] = { messages: [], name: sender, unreadCount: 0 };
             }
+            
+            // Don't count operator's own messages as unread
+            if (sender !== OPERATOR_NAME) {
+                // If this conversation is not active, increment unread count
+                if (id !== activeClientId) {
+                    conversations[id].unreadCount++;
+                }
+                
+                // Show notifications for new messages (not from operator)
+                showNotification(sender, message);
+                playNotificationSound();
+            }
+            
             conversations[id].messages.push(data);
             conversations[id].lastMessage = message;
             
             renderConversationList();
             if (id === activeClientId) {
                 renderActiveConversation();
+            }
+        }
+
+        function showNotification(sender, message) {
+            // Browser notification
+            if (Notification.permission === 'granted' && document.hidden) {
+                new Notification(`Nuevo mensaje de ${sender}`, {
+                    body: message.length > 50 ? message.substring(0, 50) + '...' : message,
+                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23007bff"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>'
+                });
+            }
+            
+            // In-app toast notification
+            notificationToast.textContent = `Nuevo mensaje de ${sender}`;
+            notificationToast.classList.add('show');
+            setTimeout(() => {
+                notificationToast.classList.remove('show');
+            }, 3000);
+        }
+
+        function playNotificationSound() {
+            try {
+                notificationSound.currentTime = 0;
+                notificationSound.play().catch(e => console.log('Could not play notification sound:', e));
+            } catch (e) {
+                console.log('Could not play notification sound:', e);
             }
         }
 
@@ -104,11 +213,21 @@
                 const item = document.createElement('li');
                 item.className = 'conversation-item';
                 item.dataset.clientId = id;
+                
+                // Add unread class if there are unread messages
+                if (conv.unreadCount > 0) {
+                    item.classList.add('unread');
+                }
+                
                 if (id === activeClientId) {
                     item.classList.add('active');
                 }
+                
+                const unreadBadge = conv.unreadCount > 0 ? 
+                    `<span class="unread-badge">${conv.unreadCount}</span>` : '';
+                
                 item.innerHTML = `
-                    <span class="client-id">${conv.name} (${id})</span>
+                    <span class="client-id">${conv.name} (${id})${unreadBadge}</span>
                     <span class="last-message">${conv.lastMessage}</span>
                 `;
                 item.addEventListener('click', () => selectConversation(id));
@@ -118,6 +237,12 @@
 
         function selectConversation(id) {
             activeClientId = id;
+            
+            // Clear unread count when selecting conversation
+            if (conversations[id]) {
+                conversations[id].unreadCount = 0;
+            }
+            
             chatHeaderEl.textContent = `Chat con ${conversations[id].name}`;
             replyInput.disabled = false;
             replyBtn.disabled = false;
@@ -177,6 +302,13 @@
         });
 
         document.addEventListener('DOMContentLoaded', initializePusher);
+
+        // Listen for test messages from parent window
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'simulate_message') {
+                handleIncomingMessage(event.data.data);
+            }
+        });
     </script>
 </body>
 </html>
