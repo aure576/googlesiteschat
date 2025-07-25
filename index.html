@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Chat</title>
+    <title>Chat Aurelio - Sistema de Control</title>
     <style>
         :root { --main-bg: #f4f7fa; --panel-bg: #fff; --border-color: #e1e8ed; --text-color: #333; --accent-color: #1a73e8; --accent-hover: #1557b0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: var(--main-bg); color: var(--text-color); display: flex; height: 100vh; }
@@ -43,7 +43,53 @@
 <body>
     <div class="sidebar">
         <div class="sidebar-header">
-            <h1>Conversaciones</h1>
+            <h1>💬 Chat Aurelio</h1>
+            <div style="margin-top: 16px;">
+                <p style="margin: 0; font-size: 14px; opacity: 0.9;">
+                    Sistema de chat con panel de control avanzado
+                </p>
+                <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px;">
+                    <a href="control.html" style="
+                        display: block;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.2);
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 8px;
+                        text-align: center;
+                        font-weight: 600;
+                        transition: background 0.2s;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.3)'" 
+                       onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                        🎛️ Panel de Control Avanzado
+                    </a>
+                    <a href="client-demo.html" style="
+                        display: block;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.1);
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 8px;
+                        text-align: center;
+                        font-weight: 500;
+                        transition: background 0.2s;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.2)'" 
+                       onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                        📱 Demo Cliente
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div style="padding: 20px; color: white; font-size: 14px; line-height: 1.5;">
+            <h3 style="margin: 0 0 12px 0; font-size: 16px;">✨ Nuevas Características:</h3>
+            <ul style="margin: 0; padding-left: 20px; opacity: 0.9;">
+                <li>🔍 Identificación automática de clientes</li>
+                <li>📱 Detección de dispositivo y navegador</li>
+                <li>🌍 Geolocalización automática</li>
+                <li>⚡ Interface en tiempo real mejorada</li>
+                <li>🔔 Notificaciones sonoras</li>
+                <li>📊 Información técnica expandible</li>
+            </ul>
         </div>
         <ul class="conversation-list" id="conversationList"></ul>
     </div>
@@ -52,7 +98,51 @@
             <h2 id="chatHeader">Selecciona una conversación</h2>
         </div>
         <div class="chat-messages" id="chatMessages">
-             <div class="placeholder"><h3>Esperando mensajes...</h3></div>
+            <div class="placeholder">
+                <div style="text-align: center; max-width: 500px;">
+                    <h3>🚀 Sistema de Chat Aurelio</h3>
+                    <p style="margin: 16px 0; color: #666; line-height: 1.6;">
+                        Bienvenido al sistema de chat con identificación automática de clientes. 
+                        Utiliza el <strong>Panel de Control Avanzado</strong> para gestionar conversaciones en tiempo real.
+                    </p>
+                    <div style="margin: 24px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: left;">
+                        <h4 style="margin: 0 0 12px 0; color: #333;">📋 Características del Sistema:</h4>
+                        <ul style="margin: 0; color: #666; line-height: 1.6;">
+                            <li><strong>Identificación automática:</strong> Detección de dispositivo, navegador y ubicación</li>
+                            <li><strong>Nombres únicos:</strong> Formato "[DISPOSITIVO] [NAVEGADOR] desde [CIUDAD] (#001)"</li>
+                            <li><strong>Tiempo real:</strong> Pusher integration con notificaciones</li>
+                            <li><strong>Información técnica:</strong> Resolución, conexión, zona horaria</li>
+                            <li><strong>Multi-conversación:</strong> Gestión simultánea de múltiples clientes</li>
+                        </ul>
+                    </div>
+                    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                        <a href="control.html" style="
+                            padding: 12px 24px;
+                            background: #1a73e8;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 24px;
+                            font-weight: 600;
+                            transition: background 0.2s;
+                        " onmouseover="this.style.background='#1557b0'" 
+                           onmouseout="this.style.background='#1a73e8'">
+                            🎛️ Abrir Panel de Control
+                        </a>
+                        <a href="client-demo.html" style="
+                            padding: 12px 24px;
+                            background: #28a745;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 24px;
+                            font-weight: 600;
+                            transition: background 0.2s;
+                        " onmouseover="this.style.background='#218838'" 
+                           onmouseout="this.style.background='#28a745'">
+                            📱 Probar Demo Cliente
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="chat-input-area">
             <form id="reply-form">

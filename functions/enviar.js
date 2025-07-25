@@ -21,7 +21,7 @@ exports.handler = async function(event) {
 
   try {
     const body = JSON.parse(event.body);
-    const { sender, clientId } = body;
+    const { sender, clientId, deviceInfo } = body;
 
     // --- LÓGICA CLAVE: Diferenciar mensajes del Control vs. del Cliente ---
 
@@ -31,7 +31,9 @@ exports.handler = async function(event) {
       await pusher.trigger('chataurelio', 'chatbidireccion', {
         sender: sender,         // Tu nombre (ej: "Soporte")
         message: body.message,  // Tu mensaje
-        clientId: clientId
+        clientId: clientId,
+        fromControl: true,
+        timestamp: new Date().toISOString()
       });
     
     // CASO 2: El mensaje viene de un cliente (no tiene la bandera)
@@ -45,7 +47,10 @@ exports.handler = async function(event) {
       await pusher.trigger('chataurelio', 'chatbidireccion', {
         sender: sender,
         message: originalMessage,
-        clientId: clientId
+        clientId: clientId,
+        deviceInfo: deviceInfo, // Include device information
+        timestamp: new Date().toISOString(),
+        fromControl: false
       });
 
       // Llama a la API de OpenAI para obtener la respuesta automática
@@ -62,13 +67,19 @@ exports.handler = async function(event) {
       await pusher.trigger('chataurelio', 'chatbidireccion', {
         sender: 'Aurelio AI',
         message: gptMessage,
-        clientId: clientId
+        clientId: clientId,
+        timestamp: new Date().toISOString(),
+        fromControl: false
       });
     }
 
     return {
       statusCode: 200,
-      headers: { "Access-Control-Allow-Origin": "*" },
+      headers: { 
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "POST, OPTIONS"
+      },
       body: JSON.stringify({ success: true })
     };
 
@@ -76,7 +87,10 @@ exports.handler = async function(event) {
     console.error('Error en la función de Netlify:', error.message);
     return {
       statusCode: 500,
-      headers: { "Access-Control-Allow-Origin": "*" },
+      headers: { 
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type"
+      },
       body: JSON.stringify({ success: false, error: error.message })
     };
   }
