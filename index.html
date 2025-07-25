@@ -67,7 +67,7 @@
         const OPERATOR_NAME = "Soporte"; // Tu nombre como operador
         const conversations = {};
         let activeClientId = null;
-        let clientIdCounter = 0; // Para generar IDs incrementales
+        let clientIdCounter = parseInt(localStorage.getItem('clientIdCounter') || '0'); // Persistir contador
 
         // Sistema de identificación automática de clientes
         function detectClientTechnology() {
@@ -186,6 +186,7 @@
 
         function generateClientId() {
             clientIdCounter++;
+            localStorage.setItem('clientIdCounter', clientIdCounter.toString()); // Persistir
             return String(clientIdCounter).padStart(3, '0');
         }
 
