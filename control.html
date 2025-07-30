@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Chat Aurelio</title>
+    <style>
+        :root {
+            --main-bg: #f4f7fa;
+            --panel-bg: #fff;
+            --border-color: #e1e8ed;
+            --text-color: #333;
+            --accent-color: #1a73e8;
+            --accent-hover: #1557b0;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --new-message-bg: #fff3cd;
+            --new-message-border: #ffeaa7;
+            --online-color: #28a745;
+            --offline-color: #6c757d;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: var(--main-bg);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            min-width: 300px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 20px;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .sidebar-stats {
+            font-size: 14px;
+            margin-top: 8px;
+            opacity: 0.9;
+        }
+
+        .conversation-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .conversation-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .conversation-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .conversation-item.active {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .conversation-item.has-new-messages {
+            background-color: var(--new-message-bg);
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .conversation-item.active.has-new-messages {
+            background-color: var(--accent-color);
+            border-left: 4px solid white;
+        }
+
+        .client-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .client-id {
+            font-weight: 600;
+            font-size: 14px;
+            line-height: 1.3;
+            flex: 1;
+        }
+
+        .client-indicators {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-left: 8px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--offline-color);
+        }
+
+        .status-indicator.online {
+            background-color: var(--online-color);
+            box-shadow: 0 0 4px var(--online-color);
+        }
+
+        .message-counter {
+            background-color: var(--danger-color);
+            color: white;
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .conversation-item.active .message-counter {
+            background-color: white;
+            color: var(--accent-color);
+        }
+
+        .last-message {
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .conversation-item.active .last-message {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .client-meta {
+            font-size: 11px;
+            color: #999;
+            display: flex;
+            gap: 8px;
+        }
+
+        .conversation-item.active .client-meta {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .client-details-toggle {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            font-size: 11px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            opacity: 0.7;
+        }
+
+        .client-details-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .conversation-item.active .client-details-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .client-details {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border-color);
+            font-size: 11px;
+            line-height: 1.4;
+            display: none;
+        }
+
+        .client-details.expanded {
+            display: block;
+        }
+
+        .conversation-item.active .client-details {
+            border-top-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Chat Area */
+        .chat-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--panel-bg);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        }
+
+        .chat-header h2 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .chat-header-meta {
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #fafbfc;
+        }
+
+        .message-item {
+            margin-bottom: 16px;
+            max-width: 80%;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-content {
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message-header {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .message-timestamp {
+            font-size: 11px;
+            opacity: 0.7;
+            font-weight: normal;
+        }
+
+        .user {
+            align-self: flex-start;
+        }
+
+        .user .message-content {
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+        }
+
+        .control {
+            align-self: flex-end;
+            text-align: right;
+        }
+
+        .control .message-content {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+
+        .ai {
+            align-self: flex-start;
+        }
+
+        .ai .message-content {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+
+        .chat-input-area {
+            border-top: 1px solid var(--border-color);
+            padding: 20px;
+            background: var(--panel-bg);
+        }
+
+        #reply-form {
+            display: flex;
+            gap: 12px;
+            align-items: end;
+        }
+
+        #reply-input {
+            flex-grow: 1;
+            padding: 12px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 22px;
+            font-size: 14px;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        #reply-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        #reply-btn {
+            padding: 12px 24px;
+            border: none;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 22px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            min-width: 80px;
+        }
+
+        #reply-btn:hover:not(:disabled) {
+            background-color: var(--accent-hover);
+        }
+
+        #reply-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .placeholder {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #999;
+            text-align: center;
+        }
+
+        .placeholder h3 {
+            font-weight: 400;
+            font-size: 18px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 280px;
+                min-width: 250px;
+            }
+            
+            .conversation-item {
+                padding: 12px 16px;
+            }
+            
+            .chat-header {
+                padding: 16px;
+            }
+            
+            .chat-messages {
+                padding: 16px;
+            }
+            
+            .message-item {
+                max-width: 90%;
+            }
+        }
+
+        /* Notification styles */
+        .notification-sound {
+            display: none;
+        }
+
+        /* Loading states */
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 16px;
+            color: #666;
+            font-style: italic;
+            font-size: 13px;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 2px;
+        }
+
+        .typing-dots span {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: #666;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.5;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>💬 Control de Chat</h1>
+            <div class="sidebar-stats" id="sidebarStats">
+                0 conversaciones activas
+            </div>
+        </div>
+        <ul class="conversation-list" id="conversationList">
+            <div class="placeholder">
+                <div>
+                    <h3>🔄 Esperando conversaciones...</h3>
+                    <p>Los clientes aparecerán aquí cuando inicien una conversación</p>
+                </div>
+            </div>
+        </ul>
+    </div>
+
+    <main class="chat-area">
+        <div class="chat-header">
+            <h2 id="chatHeader">Selecciona una conversación</h2>
+            <div class="chat-header-meta" id="chatHeaderMeta" style="display: none;">
+                <div class="connection-status">
+                    <span class="status-indicator" id="clientStatus"></span>
+                    <span id="clientStatusText">Desconectado</span>
+                </div>
+                <span id="clientLocation"></span>
+                <span id="clientDevice"></span>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="placeholder">
+                <div>
+                    <h3>💭 Panel de Control de Chat</h3>
+                    <p>Selecciona una conversación del panel izquierdo para ver los mensajes.<br>
+                    El sistema detectará automáticamente la información de los clientes.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="typing-indicator" id="typingIndicator">
+            <span>Cliente escribiendo</span>
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <form id="reply-form">
+                <textarea id="reply-input" placeholder="Selecciona una conversación para responder..." rows="1" disabled></textarea>
+                <button type="submit" id="reply-btn" disabled>Enviar</button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Audio notification -->
+    <audio id="notificationSound" class="notification-sound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvGcfBSOgzt7maDEGT6z6/fC8kSMJV4r1x2kyBhVBqOD2rm0nCkJrx9O8fxsHM6LN2OWqRAEURAi7yyAHWCg4MQcbRpJTKYDBZyAGSmzM6NMgCCYfGOPPcSgJMXnU7+mVThAOTKjm8rZsHA0vBfMaKYFPbFEjD02IcN+JLQUmRhsQE1lKd2UxAgcwJ1w2A0hD+NcQrShWN1EXJDcDJ2QOBCKGj3gqAdF0fC0LUJ2z0Uq6gwMOELU" type="audio/wav">
+    </audio>
+
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script>
+        // Configuration
+        const OPERATOR_NAME = "Soporte";
+        const PUSHER_CONFIG = {
+            key: '46e53dfe6f8d93182aaa',
+            cluster: 'us2'
+        };
+
+        // Global state
+        const conversations = {};
+        const clientSessions = {};
+        let activeClientId = null;
+        let messageCounter = 1;
+        let pusherChannel = null;
+
+        // DOM elements
+        const conversationListEl = document.getElementById('conversationList');
+        const chatHeaderEl = document.getElementById('chatHeader');
+        const chatHeaderMetaEl = document.getElementById('chatHeaderMeta');
+        const chatMessagesEl = document.getElementById('chatMessages');
+        const replyForm = document.getElementById('reply-form');
+        const replyInput = document.getElementById('reply-input');
+        const replyBtn = document.getElementById('reply-btn');
+        const sidebarStatsEl = document.getElementById('sidebarStats');
+        const clientStatusEl = document.getElementById('clientStatus');
+        const clientStatusTextEl = document.getElementById('clientStatusText');
+        const clientLocationEl = document.getElementById('clientLocation');
+        const clientDeviceEl = document.getElementById('clientDevice');
+        const typingIndicatorEl = document.getElementById('typingIndicator');
+        const notificationSoundEl = document.getElementById('notificationSound');
+
+        // Client detection utilities
+        class ClientDetector {
+            static detectDevice(userAgent) {
+                const ua = userAgent.toLowerCase();
+                if (/mobile|android|iphone|ipod|blackberry|opera mini|iemobile/i.test(ua)) {
+                    if (/iphone|ipod/i.test(ua)) return 'iPhone';
+                    if (/android/i.test(ua)) return 'Android';
+                    return 'Mobile';
+                }
+                if (/tablet|ipad|playbook|silk/i.test(ua)) {
+                    if (/ipad/i.test(ua)) return 'iPad';
+                    return 'Tablet';
+                }
+                return 'Desktop';
+            }
+
+            static detectBrowser(userAgent) {
+                const ua = userAgent.toLowerCase();
+                if (/edg/i.test(ua)) return 'Edge';
+                if (/chrome/i.test(ua) && !/edg/i.test(ua)) return 'Chrome';
+                if (/firefox/i.test(ua)) return 'Firefox';
+                if (/safari/i.test(ua) && !/chrome/i.test(ua)) return 'Safari';
+                if (/opera/i.test(ua)) return 'Opera';
+                return 'Unknown';
+            }
+
+            static detectOS(userAgent) {
+                const ua = userAgent.toLowerCase();
+                if (/windows/i.test(ua)) return 'Windows';
+                if (/macintosh|mac os x/i.test(ua)) return 'macOS';
+                if (/android/i.test(ua)) return 'Android';
+                if (/iphone|ipad|ipod/i.test(ua)) return 'iOS';
+                if (/linux/i.test(ua)) return 'Linux';
+                return 'Unknown';
+            }
+
+            static async getLocationInfo() {
+                try {
+                    // Mock geolocation for demo - in production this would use a geolocation API
+                    const cities = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao', 'Zaragoza'];
+                    return cities[Math.floor(Math.random() * cities.length)] + ', España';
+                } catch (error) {
+                    return 'Ubicación no disponible';
+                }
+            }
+
+            static getConnectionType() {
+                if (navigator.connection) {
+                    return navigator.connection.effectiveType || 'unknown';
+                }
+                return 'unknown';
+            }
+
+            static generateClientInfo(userAgent = navigator.userAgent) {
+                const device = this.detectDevice(userAgent);
+                const browser = this.detectBrowser(userAgent);
+                const os = this.detectOS(userAgent);
+                
+                return {
+                    device,
+                    browser,
+                    os,
+                    userAgent,
+                    timestamp: new Date().toISOString(),
+                    screen: `${screen.width}x${screen.height}`,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    language: navigator.language,
+                    connection: this.getConnectionType(),
+                    pixelRatio: window.devicePixelRatio || 1
+                };
+            }
+
+            static async generateDisplayName(clientInfo, existingNames = []) {
+                const location = await this.getLocationInfo();
+                const device = clientInfo.device;
+                const browser = clientInfo.browser;
+                
+                // Generate base name
+                const baseName = `${device} ${browser} desde ${location}`;
+                
+                // Find next available counter
+                let counter = 1;
+                const existingCounters = existingNames
+                    .filter(name => name.startsWith(baseName))
+                    .map(name => {
+                        const match = name.match(/#(\d+)\)$/);
+                        return match ? parseInt(match[1]) : 0;
+                    });
+                
+                if (existingCounters.length > 0) {
+                    counter = Math.max(...existingCounters) + 1;
+                }
+                
+                return `${baseName} (#${counter.toString().padStart(3, '0')})`;
+            }
+
+            static generateClientId(clientInfo) {
+                // Generate a unique but anonymous client ID
+                const timestamp = Date.now();
+                const deviceHash = this.simpleHash(clientInfo.userAgent);
+                const screenHash = this.simpleHash(clientInfo.screen);
+                return `${deviceHash}_${screenHash}_${timestamp}`.substr(0, 32);
+            }
+
+            static simpleHash(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32-bit integer
+                }
+                return Math.abs(hash).toString(36);
+            }
+        }
+
+        // Initialize Pusher connection
+        function initializePusher() {
+            try {
+                const pusher = new Pusher(PUSHER_CONFIG.key, { 
+                    cluster: PUSHER_CONFIG.cluster,
+                    encrypted: true
+                });
+                
+                pusherChannel = pusher.subscribe('chataurelio');
+                pusherChannel.bind('chatbidireccion', handleIncomingMessage);
+                
+                console.log('✅ Pusher conectado exitosamente');
+            } catch (error) {
+                console.error('❌ Error conectando Pusher:', error);
+            }
+        }
+
+        // Handle incoming messages
+        async function handleIncomingMessage(data) {
+            const { sender, message, clientId, deviceInfo, fromControl } = data;
+            
+            // Skip messages from this control panel
+            if (fromControl && sender === OPERATOR_NAME) {
+                return;
+            }
+            
+            let finalClientId = clientId;
+            let displayName = sender;
+            
+            // If this is a new client message without proper identification
+            if (!fromControl && !deviceInfo) {
+                const existingNames = Object.values(conversations).map(conv => conv.displayName);
+                const clientInfo = ClientDetector.generateClientInfo();
+                displayName = await ClientDetector.generateDisplayName(clientInfo, existingNames);
+                finalClientId = clientId || ClientDetector.generateClientId(clientInfo);
+                
+                // Store enhanced client info
+                clientSessions[finalClientId] = {
+                    ...clientInfo,
+                    location: await ClientDetector.getLocationInfo(),
+                    firstSeen: new Date().toISOString(),
+                    lastSeen: new Date().toISOString()
+                };
+            } else if (deviceInfo) {
+                // Use provided device info
+                clientSessions[finalClientId] = {
+                    ...deviceInfo,
+                    lastSeen: new Date().toISOString()
+                };
+                displayName = sender;
+            }
+            
+            // Initialize conversation if needed
+            if (!conversations[finalClientId]) {
+                conversations[finalClientId] = {
+                    messages: [],
+                    displayName: displayName,
+                    lastMessage: '',
+                    unreadCount: 0,
+                    isOnline: true,
+                    lastActivity: new Date().toISOString()
+                };
+            }
+            
+            // Add message to conversation
+            const messageData = {
+                ...data,
+                clientId: finalClientId,
+                sender: fromControl ? sender : displayName,
+                timestamp: new Date().toISOString(),
+                id: messageCounter++
+            };
+            
+            conversations[finalClientId].messages.push(messageData);
+            conversations[finalClientId].lastMessage = message;
+            conversations[finalClientId].lastActivity = new Date().toISOString();
+            
+            // Increment unread count if not active conversation
+            if (finalClientId !== activeClientId && !fromControl) {
+                conversations[finalClientId].unreadCount++;
+                playNotificationSound();
+            }
+            
+            // Update UI
+            renderConversationList();
+            if (finalClientId === activeClientId) {
+                renderActiveConversation();
+            }
+            
+            updateSidebarStats();
+        }
+
+        // Render conversation list
+        function renderConversationList() {
+            const conversationIds = Object.keys(conversations);
+            
+            if (conversationIds.length === 0) {
+                conversationListEl.innerHTML = `
+                    <div class="placeholder">
+                        <div>
+                            <h3>🔄 Esperando conversaciones...</h3>
+                            <p>Los clientes aparecerán aquí cuando inicien una conversación</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Sort by last activity
+            conversationIds.sort((a, b) => {
+                const timeA = new Date(conversations[a].lastActivity).getTime();
+                const timeB = new Date(conversations[b].lastActivity).getTime();
+                return timeB - timeA;
+            });
+            
+            conversationListEl.innerHTML = '';
+            conversationIds.forEach(id => {
+                const conv = conversations[id];
+                const clientInfo = clientSessions[id];
+                const item = document.createElement('li');
+                
+                item.className = 'conversation-item';
+                item.dataset.clientId = id;
+                
+                if (id === activeClientId) {
+                    item.classList.add('active');
+                }
+                
+                if (conv.unreadCount > 0) {
+                    item.classList.add('has-new-messages');
+                }
+                
+                const deviceIcon = getDeviceIcon(clientInfo?.device);
+                const lastMessageTime = formatTime(conv.lastActivity);
+                
+                item.innerHTML = `
+                    <div class="client-header">
+                        <div class="client-id">${deviceIcon} ${conv.displayName}</div>
+                        <div class="client-indicators">
+                            <div class="status-indicator ${conv.isOnline ? 'online' : ''}"></div>
+                            ${conv.unreadCount > 0 ? `<div class="message-counter">${conv.unreadCount}</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="last-message">${conv.lastMessage}</div>
+                    <div class="client-meta">
+                        <span>🕒 ${lastMessageTime}</span>
+                        ${clientInfo ? `<span>📍 ${clientInfo.location || 'N/A'}</span>` : ''}
+                        <button class="client-details-toggle" onclick="toggleClientDetails('${id}')">ℹ️ Info</button>
+                    </div>
+                    ${clientInfo ? `
+                        <div class="client-details" id="details-${id}">
+                            <strong>📋 Información Técnica:</strong><br>
+                            🕐 Conectado: ${formatDateTime(clientInfo.firstSeen || clientInfo.timestamp)}<br>
+                            📱 Dispositivo: ${clientInfo.device} (${clientInfo.os})<br>
+                            🌐 Navegador: ${clientInfo.browser}<br>
+                            📏 Pantalla: ${clientInfo.screen}${clientInfo.pixelRatio ? ` (${clientInfo.pixelRatio}x)` : ''}<br>
+                            🌍 Ubicación: ${clientInfo.location || 'No disponible'}<br>
+                            🌐 Conexión: ${clientInfo.connection || 'Desconocida'}<br>
+                            🗣️ Idioma: ${clientInfo.language || 'N/A'}<br>
+                            🕰️ Zona horaria: ${clientInfo.timezone || 'N/A'}<br>
+                            🆔 ID Técnico: ${id}
+                        </div>
+                    ` : ''}
+                `;
+                
+                item.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('client-details-toggle')) {
+                        selectConversation(id);
+                    }
+                });
+                
+                conversationListEl.appendChild(item);
+            });
+        }
+
+        // Toggle client details
+        function toggleClientDetails(clientId) {
+            const detailsEl = document.getElementById(`details-${clientId}`);
+            if (detailsEl) {
+                detailsEl.classList.toggle('expanded');
+            }
+        }
+
+        // Select conversation
+        function selectConversation(id) {
+            activeClientId = id;
+            const conv = conversations[id];
+            const clientInfo = clientSessions[id];
+            
+            // Reset unread count
+            conv.unreadCount = 0;
+            
+            // Update header
+            chatHeaderEl.textContent = `💬 ${conv.displayName}`;
+            
+            // Update header meta information
+            if (clientInfo) {
+                chatHeaderMetaEl.style.display = 'flex';
+                clientStatusEl.className = `status-indicator ${conv.isOnline ? 'online' : ''}`;
+                clientStatusTextEl.textContent = conv.isOnline ? 'En línea' : 'Desconectado';
+                clientLocationEl.textContent = `📍 ${clientInfo.location || 'Ubicación no disponible'}`;
+                clientDeviceEl.textContent = `${getDeviceIcon(clientInfo.device)} ${clientInfo.device} • ${clientInfo.browser}`;
+            } else {
+                chatHeaderMetaEl.style.display = 'none';
+            }
+            
+            // Enable input
+            replyInput.disabled = false;
+            replyBtn.disabled = false;
+            replyInput.placeholder = `Responder a ${conv.displayName}...`;
+            
+            // Update UI
+            renderConversationList();
+            renderActiveConversation();
+        }
+
+        // Render active conversation
+        function renderActiveConversation() {
+            if (!activeClientId || !conversations[activeClientId]) {
+                chatMessagesEl.innerHTML = `
+                    <div class="placeholder">
+                        <div>
+                            <h3>💭 Panel de Control de Chat</h3>
+                            <p>Selecciona una conversación del panel izquierdo para ver los mensajes.</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            chatMessagesEl.innerHTML = '';
+            const messages = conversations[activeClientId].messages;
+            
+            messages.forEach(msg => {
+                const item = document.createElement('div');
+                let type = 'user';
+                
+                if (msg.sender === OPERATOR_NAME || msg.fromControl) {
+                    type = 'control';
+                } else if (msg.sender === 'Aurelio AI') {
+                    type = 'ai';
+                }
+                
+                item.className = `message-item ${type}`;
+                item.innerHTML = `
+                    <div class="message-header">
+                        <span>${msg.sender}</span>
+                        <span class="message-timestamp">${formatTime(msg.timestamp)}</span>
+                    </div>
+                    <div class="message-content">${escapeHtml(msg.message)}</div>
+                `;
+                
+                chatMessagesEl.appendChild(item);
+            });
+            
+            // Auto-scroll to bottom
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        }
+
+        // Send reply
+        replyForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const messageText = replyInput.value.trim();
+            if (!messageText || !activeClientId) return;
+            
+            replyBtn.disabled = true;
+            replyInput.value = '';
+            
+            try {
+                const response = await fetch('/.netlify/functions/enviar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sender: OPERATOR_NAME,
+                        message: messageText,
+                        clientId: activeClientId,
+                        fromControl: true
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+                
+            } catch (error) {
+                console.error("Error al enviar respuesta:", error);
+                replyInput.value = messageText; // Restore message on error
+                alert('Error al enviar el mensaje. Por favor, inténtalo de nuevo.');
+            } finally {
+                replyBtn.disabled = false;
+                replyInput.focus();
+            }
+        });
+
+        // Utility functions
+        function getDeviceIcon(device) {
+            switch (device) {
+                case 'iPhone': return '📱';
+                case 'iPad': return '📱';
+                case 'Android': return '📱';
+                case 'Mobile': return '📱';
+                case 'Tablet': return '📱';
+                case 'Desktop': return '🖥️';
+                default: return '💻';
+            }
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        function formatDateTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('es-ES', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function updateSidebarStats() {
+            const totalConversations = Object.keys(conversations).length;
+            const activeConversations = Object.values(conversations).filter(conv => conv.isOnline).length;
+            sidebarStatsEl.textContent = `${totalConversations} conversaciones • ${activeConversations} activas`;
+        }
+
+        function playNotificationSound() {
+            try {
+                notificationSoundEl.currentTime = 0;
+                notificationSoundEl.play().catch(e => {
+                    // Ignore play errors (user interaction required)
+                });
+            } catch (error) {
+                // Ignore notification sound errors
+            }
+        }
+
+        // Auto-resize textarea
+        replyInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Keyboard shortcuts
+        replyInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                replyForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        // Make toggleClientDetails globally available
+        window.toggleClientDetails = toggleClientDetails;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initializePusher();
+            updateSidebarStats();
+            console.log('🚀 Panel de Control de Chat inicializado');
+        });
+    </script>
+</body>
+</html>
